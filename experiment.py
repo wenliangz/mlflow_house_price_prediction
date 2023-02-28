@@ -126,7 +126,8 @@ if __name__ == '__main__':
     mlflow.set_tracking_uri(f"http://{MLFLOW_SERVER}")
     # if mlflow.get_experiment_by_name(f"house_price_prediction") == None:
     #     mlflow.create_experiment(f"run_{run_date}")
-    mlflow.set_experiment(f"house_price_prediction")
+    mlflow.delete_experiment('house_price_prediction')
+    mlflow.set_experiment("house_prediction")
 
     # mlflow.set_tracking_uri("http://localhost:5000")
     # mlflow.set_experiment("Models exercise")
