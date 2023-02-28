@@ -122,7 +122,7 @@ if __name__ == '__main__':
     # run_date = sys.argv[2]
     MLFLOW_SERVER = sys.argv[3]
     # data_dir = pathlib.Path(f"{data_path_args}")
-
+    print('Running experiment!')
     mlflow.set_tracking_uri(f"http://{MLFLOW_SERVER}")
     # if mlflow.get_experiment_by_name(f"house_price_prediction") == None:
     #     mlflow.create_experiment(f"run_{run_date}")
