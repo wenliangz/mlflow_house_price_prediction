@@ -3,16 +3,25 @@ import pickle
 import shutil
 
 import mlflow
-import sys
-import os
-import pathlib
 import pandas as pd
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
-import mlflow
+
 from mlflow.pyfunc import PythonModel
 
+mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.set_experiment("Models exercise")
+
+os.makedirs("tmp")
+
+# Load the complete dataset, select features + target variable
+data = pd.read_csv("data/ames_housing.csv")
+feature_columns = ["Lot Area", "Gr Liv Area", "Garage Area", "Bldg Type"]
+selected = data.loc[:, feature_columns + ["SalePrice"]]
+
+# Features that need encoding (categorical ones)
+cat_features = ["Bldg Type"]
 
 class WrappedLRModel(PythonModel):
 
@@ -48,8 +57,9 @@ class WrappedLRModel(PythonModel):
             model_features = model_features.apply(lambda row: self._encode(row, col), axis=1)
         model_features = model_features.loc[:, self.feature_names]
         return self.lr_model.predict(model_features.to_numpy())
+        
 
-def prepare_data(dataframe, cat_features):
+def prepare_data(dataframe):
     df = dataframe
     cat_features_values = {}
     # Encode all the categorical features
@@ -72,8 +82,7 @@ def train_and_evaluate(dataframe, cat_features_values):
     features = dataframe.drop(["SalePrice"], axis=1)
     target = dataframe.loc[:, "SalePrice"]
     # Split into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(features.to_numpy(), target.to_numpy(), test_size=0.2,
-                                                        random_state=12)
+    X_train, X_test, y_train, y_test = train_test_split(features.to_numpy(), target.to_numpy(), test_size=0.2, random_state=12)
 
     # Plot
     plot = dataframe.plot.scatter(x=0, y="SalePrice")
@@ -90,7 +99,7 @@ def train_and_evaluate(dataframe, cat_features_values):
     # Save the model
     serialized_model = pickle.dumps(model)
     with open("tmp/model.pkl", "wb") as f:
-        f.write(serialized_model)
+       f.write(serialized_model)
 
     model_artifact_name = "original_sklearn_model"
     model_artifacts = {
@@ -100,9 +109,9 @@ def train_and_evaluate(dataframe, cat_features_values):
     mlflow.pyfunc.log_model(
         "custom_model",
         python_model=WrappedLRModel(sklearn_model_features=list(features.columns),
-                                    cat_features=cat_features_values,
-                                    model_artifact_name=model_artifact_name
-                                    ),
+            cat_features=cat_features_values,
+            model_artifact_name=model_artifact_name
+            ),
         artifacts=model_artifacts,
         registered_model_name="House price predictions"
     )
@@ -116,36 +125,9 @@ def train_and_evaluate(dataframe, cat_features_values):
     mlflow.log_artifacts("tmp")
 
 
-if __name__ == '__main__':
-    # Read and create datasets
-    # data_path_args = sys.argv[1]
-    # run_date = sys.argv[2]
-    # MLFLOW_SERVER = sys.argv[3]
-    # data_dir = pathlib.Path(f"{data_path_args}")
+with mlflow.start_run():
+    prepared, cat_features_values = prepare_data(selected)
+    train_and_evaluate(prepared, cat_features_values)
 
-    # mlflow.set_tracking_uri(f"http://{MLFLOW_SERVER}")
-    mlflow.set_tracking_uri(f"http://192.168.1.248:5000")
-    # if mlflow.get_experiment_by_name(f"house_price_prediction") == None:
-    #     mlflow.create_experiment(f"run_{run_date}")
-    # mlflow.delete_experiment('house_price_prediction')
-    mlflow.set_experiment("house_prediction")
 
-    # mlflow.set_tracking_uri("http://localhost:5000")
-    # mlflow.set_experiment("Models exercise")
-
-    if not os.path.exists('tmp'):
-        os.makedirs("tmp")
-
-        # Load the complete dataset, select features + target variable
-    data = pd.read_csv("housedata.csv")
-    feature_columns = ["Lot Area", "Gr Liv Area", "Garage Area", "Bldg Type"]
-    selected = data.loc[:, feature_columns + ["SalePrice"]]
-
-    # Features that need encoding (categorical ones)
-    cat_features = ["Bldg Type"]
-
-    with mlflow.start_run():
-        prepared, cat_features_values = prepare_data(selected, cat_features)
-        train_and_evaluate(prepared, cat_features_values)
-
-    shutil.rmtree("tmp")
+shutil.rmtree("tmp")
